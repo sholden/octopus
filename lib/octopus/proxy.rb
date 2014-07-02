@@ -24,6 +24,8 @@ class Octopus::Proxy
     end
 
     @shards_config ||= []
+    @shared_pool_shard_to_database ||= HashWithIndifferentAccess.new
+    @shared_pool_adapter_to_pool ||= HashWithIndifferentAccess.new
 
     @shards_config.each do |key, value|
       if value.is_a?(String)
@@ -205,7 +207,9 @@ class Octopus::Proxy
   end
 
   def select_connection
-    safe_connection(@shards[shard_name])
+    safe_connection(@shards[shard_name]).tap do |connection|
+      prepare_shared_connection(connection) if shared_pool_shard?(shard_name)
+    end
   end
 
   def shard_name
@@ -324,8 +328,7 @@ class Octopus::Proxy
   def connection_pool_for(adapter, config)
     shared_pool = adapter.is_a?(Hash) && adapter[:shared_pool]
     if shared_pool
-      @shard_to_database ||= {}
-      @shard_to_database[adapter[:octopus_shard]] = adapter.delete(:database)
+      @shared_pool_shard_to_database[adapter[:octopus_shard]] = adapter.delete(:database)
     end
 
     if Octopus.rails4?
@@ -335,8 +338,7 @@ class Octopus::Proxy
     end
 
     if shared_pool
-      @config_to_pool ||= {}
-      @config_to_pool[adapter.except(:octopus_shard)] ||= ActiveRecord::ConnectionAdapters::ConnectionPool.new(arg)
+      @shared_pool_adapter_to_pool[adapter.except(:octopus_shard)] ||= ActiveRecord::ConnectionAdapters::ConnectionPool.new(arg)
     else
       ActiveRecord::ConnectionAdapters::ConnectionPool.new(arg)
     end
@@ -407,6 +409,32 @@ class Octopus::Proxy
   def send_queries_to_slave(slave, method, *args, &block)
     using_shard(slave) do
       select_connection.send(method, *args, &block)
+    end
+  end
+
+  def shared_pool_shard?(shard_name)
+    @shared_pool_shard_to_database[shard_name].present?
+  end
+
+  def prepare_shared_connection(connection)
+    set_database(connection, @shared_pool_shard_to_database[shard_name])
+  end
+
+  def get_database(connection)
+    case connection.pool.spec.adapter_method
+      when 'mysql2_connection'
+        connection.execute("SELECT DATABASE();").first.first
+      else
+        raise "#{connection.class} does not support shared connection pools between shards"
+    end
+  end
+
+  def set_database(connection, database)
+    case connection.pool.spec.adapter_method
+      when 'mysql2_connection'
+        connection.execute("USE #{database};")
+      else
+        raise "#{connection.class} does not support shared connection pools between shards"
     end
   end
 

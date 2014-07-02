@@ -239,6 +239,24 @@ describe Octopus::Proxy do
         proxy.select_connection().should == proxy.instance_variable_get(:@shards)[:canada].connection()
       end
     end
+
+    describe "should return the connection and set the database based on shard_name for shared pools" do
+      it 'when current_shard changes' do
+        proxy.current_shard = :shared1
+        connection1 = proxy.select_connection()
+        expected = proxy.instance_variable_get(:@shards)[:shared1].connection()
+        connection1.should == expected
+        db_name = proxy.send(:get_database, connection1)
+        db_name.should == 'octopus_shard_2'
+
+        proxy.current_shard = :shared2
+        connection2 = proxy.select_connection()
+        connection2.should == proxy.instance_variable_get(:@shards)[:shared2].connection()
+        proxy.send(:get_database, connection2).should == 'octopus_shard_3'
+
+        connection1.should equal(connection2)
+      end
+    end
   end
 
   describe "saving multiple sharded objects at once" do
