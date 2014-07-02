@@ -322,13 +322,24 @@ class Octopus::Proxy
   protected
 
   def connection_pool_for(adapter, config)
+    shared_pool = adapter.is_a?(Hash) && adapter[:shared_pool]
+    if shared_pool
+      @shard_to_database ||= {}
+      @shard_to_database[adapter[:octopus_shard]] = adapter.delete(:database)
+    end
+
     if Octopus.rails4?
       arg = ActiveRecord::ConnectionAdapters::ConnectionSpecification.new(adapter.dup, config)
     else
       arg = ActiveRecord::Base::ConnectionSpecification.new(adapter.dup, config)
     end
 
-    ActiveRecord::ConnectionAdapters::ConnectionPool.new(arg)
+    if shared_pool
+      @config_to_pool ||= {}
+      @config_to_pool[adapter.except(:octopus_shard)] ||= ActiveRecord::ConnectionAdapters::ConnectionPool.new(arg)
+    else
+      ActiveRecord::ConnectionAdapters::ConnectionPool.new(arg)
+    end
   end
 
   def initialize_adapter(adapter)

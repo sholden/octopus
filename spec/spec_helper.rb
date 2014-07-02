@@ -1,5 +1,5 @@
 require "rubygems"
-require "pry"
+#require "pry"
 require "bundler/setup"
 require "octopus"
 

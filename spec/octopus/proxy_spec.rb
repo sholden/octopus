@@ -7,7 +7,7 @@ describe Octopus::Proxy do
     it "should initialize all shards and groups" do
       # FIXME: Don't test implementation details
       proxy.instance_variable_get(:@shards).should include("canada", "brazil", "master", "sqlite_shard", "russia", "alone_shard",
-                                                           "aug2009", "postgresql_shard", "aug2010", "aug2011")
+                                                           "aug2009", "postgresql_shard", "aug2010", "aug2011", "shared1", "shared2")
 
       proxy.instance_variable_get(:@shards).should include("protocol_shard")
 
@@ -16,6 +16,9 @@ describe Octopus::Proxy do
 
       proxy.has_group?("history_shards").should be_true
       proxy.shards_for_group("history_shards").should include(:aug2009, :aug2010, :aug2011)
+
+      proxy.has_group?("shared_pool_shards").should be_true
+      proxy.shards_for_group("shared_pool_shards").should include(:shared1, :shared2)
     end
 
     it "should initialize the block attribute as false" do
@@ -45,6 +48,10 @@ describe Octopus::Proxy do
 
     it 'should respond correctly to respond_to?(:primary_key)' do
       proxy.respond_to?(:primary_key).should be_true
+    end
+
+    it 'should allow sharing connection pools between shards' do
+      Octopus.using('shared1'){ proxy.select_connection }.should equal(Octopus.using('shared2'){ proxy.select_connection })
     end
 
     context 'when an adapter that modifies the config' do
