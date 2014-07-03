@@ -417,7 +417,15 @@ class Octopus::Proxy
   end
 
   def prepare_shared_connection(connection)
-    set_database(connection, @shared_pool_shard_to_database[shard_name])
+    set_database(connection, database_name(shard_name))
+  end
+
+  def database_name(shard_name)
+    if shared_pool_shard?(shard_name)
+      @shared_pool_shard_to_database[shard_name]
+    else
+
+    end
   end
 
   def get_database(connection)
