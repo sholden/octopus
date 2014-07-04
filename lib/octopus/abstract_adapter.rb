@@ -34,6 +34,9 @@ module Octopus
         @instrumenter = InstrumenterDecorator.new(self, @instrumenter)
       end
 
+      def supports_shared_connection_pool?
+        false
+      end
     end
   end
 end

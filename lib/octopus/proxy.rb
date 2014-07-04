@@ -438,11 +438,10 @@ class Octopus::Proxy
   end
 
   def set_database(connection, database)
-    case connection.pool.spec.adapter_method
-      when 'mysql2_connection'
-        connection.execute("USE #{database};")
-      else
-        raise "#{connection.class} does not support shared connection pools between shards"
+    if connection.supports_shared_connection_pool?
+      connection.database = database
+    else
+      raise "#{connection.class} does not support shared connection pools between shards"
     end
   end
 
