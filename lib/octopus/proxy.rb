@@ -417,14 +417,14 @@ class Octopus::Proxy
   end
 
   def prepare_shared_connection(connection)
-    set_database(connection, database_name(shard_name))
+    set_database(connection, shard_name)
   end
 
   def database_name(shard_name)
     if shared_pool_shard?(shard_name)
       @shared_pool_shard_to_database[shard_name]
     else
-
+      @shards[shard_name].spec.config['database']
     end
   end
 
@@ -437,9 +437,10 @@ class Octopus::Proxy
     end
   end
 
-  def set_database(connection, database)
+  def set_database(connection, shard_name)
     if connection.supports_shared_connection_pool?
-      connection.database = database
+      connection.octopus_shard = shard_name
+      connection.database = database_name(shard_name)
     else
       raise "#{connection.class} does not support shared connection pools between shards"
     end

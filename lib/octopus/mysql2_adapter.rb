@@ -5,6 +5,10 @@ class ActiveRecord::ConnectionAdapters::Mysql2Adapter
     true
   end
 
+  def octopus_shard=(octopus_shard)
+    @config[:octopus_shard] = octopus_shard
+  end
+
   def database=(database)
     if @database != database
       execute("USE #{database};")

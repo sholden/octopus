@@ -2,6 +2,7 @@ require "rubygems"
 #require "pry"
 require "bundler/setup"
 require "octopus"
+require "octopus/mysql2_adapter"
 
 Octopus.instance_variable_set(:@directory, File.dirname(__FILE__))
 
